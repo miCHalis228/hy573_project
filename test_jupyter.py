@@ -12,8 +12,8 @@ documents = data.data
 vectorizer = TfidfVectorizer(stop_words='english', dtype=np.float32)
 dtm = vectorizer.fit_transform(documents)
 
-alpha_values = [0]
-l1_ratios = [0]
+alpha_values = [0,1]
+l1_ratios = [0,1]
 
 results_svd = run_all_svd(document_term_matrix=dtm,
                           vectorizer=vectorizer,

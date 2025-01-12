@@ -1,7 +1,9 @@
 import tables
 import numpy as np
+import os
 from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import normalize
+from timeit import default_timer as timer
 
 def calculate_reconstruction_error(original_hdf5, reconstructed_hdf5, chunk_size=100):
     with tables.open_file(original_hdf5, mode="r") as orig_file, \
@@ -77,6 +79,9 @@ def save_svd_to_hdf5(U, Sigma, Vt, hdf5_file):
         v_storage = f.create_carray(f.root, 'Vt', atom, v_shape)
         v_storage[:] = Vt
 
+def apply_L1():
+    return
+
 def get_topics(components, features, top_n=10):
     topic_word_list = []  # Store the list of topics
     for i, comp in enumerate(components):  # Iterate over topics
@@ -90,11 +95,19 @@ def get_topics(components, features, top_n=10):
 original_matrix_file = "original_matrix.h5"
 
 def run_svd(dtm, features, n_components, alpha, l1_ratio):
+    normed_matrix = []
+    if alpha != 0:
+        if l1_ratio == 0: # Pure L2
+            normed_matrix = normalize(dtm, axis=1, norm='l2')
+        else: # Pure L1
+            normed_matrix = normalize(dtm, axis=1, norm='l1')
+    else:
+        normed_matrix = dtm
     svd_model = TruncatedSVD(n_components=n_components, random_state=2025)
-    U_k = svd_model.fit_transform(dtm)
+    U_k = svd_model.fit_transform(normed_matrix)
     Sigma_k = np.diag(svd_model.singular_values_)
     V_k = svd_model.components_
-    topics = get_topics(U_k, features, top_n = 10)
+    topics = get_topics(V_k, features, top_n = 10)
 
     svd_decomposition_file = "svd_decomposition.h5"
     save_svd_to_hdf5(U=U_k,Sigma=Sigma_k,Vt=V_k,hdf5_file=svd_decomposition_file)
@@ -105,6 +118,8 @@ def run_svd(dtm, features, n_components, alpha, l1_ratio):
     reconstruction_error = calculate_reconstruction_error(original_matrix_file,
                                                           svd_reconstructed_matrix_file,
                                                           chunk_size=1000)
+    os.remove(svd_decomposition_file)
+    os.remove(svd_reconstructed_matrix_file)
     return reconstruction_error, topics
 
 # from sparsesvd import sparsesvd
@@ -120,20 +135,28 @@ def run_all_svd(document_term_matrix, vectorizer, alpha_values, l1_ratios):
     features = vectorizer.get_feature_names_out()
     for n_components in range(2,3):
         print(f"for n_components: {n_components}")
+
         for alpha in alpha_values:
             print(f"for alpha: {alpha}")
             for l1_ratio in l1_ratios:
+                start = timer()
                 reconstruction_error, topics = run_svd(document_term_matrix,
                                                        features,
                                                        n_components,
                                                        alpha,
                                                        l1_ratio)
+                end = timer()
                 print(f"for l1_ration: {l1_ratio} -> {reconstruction_error}")
                 results.append({
                     "n_components": n_components,
                     "reconstruction_error": reconstruction_error,
                     "alpha": alpha,
                     "l1_ratio": l1_ratio,
-                    "topics":topics
+                    "topics":topics,
+                    "time":end-start
                     })
+                if alpha == 0: 
+                    break
+
+    os.remove(original_matrix_file)
     return results
