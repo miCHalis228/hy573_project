@@ -107,7 +107,7 @@ def run_svd(dtm, features, n_components, alpha, l1_ratio):
     U_k = svd_model.fit_transform(normed_matrix)
     Sigma_k = np.diag(svd_model.singular_values_)
     V_k = svd_model.components_
-    topics = get_topics(V_k, features, top_n = 10)
+    topics = get_topics(V_k, features, top_n = 100)
 
     svd_decomposition_file = "svd_decomposition.h5"
     save_svd_to_hdf5(U=U_k,Sigma=Sigma_k,Vt=V_k,hdf5_file=svd_decomposition_file)
@@ -126,13 +126,12 @@ def run_svd(dtm, features, n_components, alpha, l1_ratio):
 # X = np.random.random((30, 30))
 # ut, s, vt = sparsesvd(X.tocsc(), k)
 
-def run_all_svd(document_term_matrix, vectorizer, alpha_values, l1_ratios):
+def run_all_svd(document_term_matrix, features, alpha_values, l1_ratios):
     original_matrix_file = "original_matrix.h5"
     save_original_to_hdf5(original_matrix=document_term_matrix.todense()
                           ,hdf5_file=original_matrix_file)
     results = []
     # for all components
-    features = vectorizer.get_feature_names_out()
     for n_components in range(2,3):
         print(f"for n_components: {n_components}")
 

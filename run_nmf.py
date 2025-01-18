@@ -12,11 +12,15 @@ documents = data.data
 vectorizer = TfidfVectorizer(stop_words='english', dtype=np.float32)
 dtm = vectorizer.fit_transform(documents)
 
-alpha_values = [0,1]
-l1_ratios = [0,1]
+alpha_values = [0,1, 5, 10]
+l1_ratios = [0,0.25,0.5,0.75,1]
+features = vectorizer.get_feature_names_out()
 
-results_svd = run_all_svd(document_term_matrix=dtm,
-                          vectorizer=vectorizer,
+results_nmf = run_all_nmf(document_term_matrix=dtm,
+                          features=features,
                           alpha_values=alpha_values,
                           l1_ratios=l1_ratios)
-print(results_svd)
+df = pd.DataFrame(results_nmf)
+
+output_file = "nmf_reconstruction_errors.csv"
+df.to_csv(output_file, index=False)
