@@ -89,7 +89,7 @@ def get_topics(components, features, top_n=10):
         sorted_terms = sorted(terms_comp, key=lambda x: x[1], reverse=True)[:top_n]  # Get top words by weight
         topic_words = [t[0] for t in sorted_terms]  # Extract words only
         topic_word_list.append(topic_words)  # Append to list
-        print(f"Topic {i}: {' '.join(topic_words)}")  # Print the topic words as a string
+        # print(f"Topic {i}: {' '.join(topic_words)}")  # Print the topic words as a string
     return topic_word_list
 
 original_matrix_file = "original_matrix.h5"
@@ -132,20 +132,16 @@ def run_all_svd(document_term_matrix, features, alpha_values, l1_ratios):
                           ,hdf5_file=original_matrix_file)
     results = []
     # for all components
-    for n_components in range(2,3):
-        print(f"for n_components: {n_components}")
-
+    for n_components in range(2,21):
         for alpha in alpha_values:
-            print(f"for alpha: {alpha}")
             for l1_ratio in l1_ratios:
                 start = timer()
-                reconstruction_error, topics = run_svd(document_term_matrix,
-                                                       features,
-                                                       n_components,
-                                                       alpha,
-                                                       l1_ratio)
+                reconstruction_error, topics = run_svd(dtm=document_term_matrix,
+                                                       features=features,
+                                                       n_components=n_components,
+                                                       alpha=alpha,
+                                                       l1_ratio=l1_ratio)
                 end = timer()
-                print(f"for l1_ration: {l1_ratio} -> {reconstruction_error}")
                 results.append({
                     "n_components": n_components,
                     "reconstruction_error": reconstruction_error,

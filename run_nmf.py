@@ -22,5 +22,5 @@ results_nmf = run_all_nmf(document_term_matrix=dtm,
                           l1_ratios=l1_ratios)
 df = pd.DataFrame(results_nmf)
 
-output_file = "nmf_reconstruction_errors.csv"
+output_file = "nmf_results.csv"
 df.to_csv(output_file, index=False)

@@ -20,4 +20,8 @@ results_svd = run_all_svd(document_term_matrix=dtm,
                           features=features,
                           alpha_values=alpha_values,
                           l1_ratios=l1_ratios)
-print(results_svd)
+
+df = pd.DataFrame(results_svd)
+
+output_file = "svd_results.csv"
+df.to_csv(output_file, index=False)

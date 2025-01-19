@@ -18,7 +18,7 @@ def run_nmf(document_term_matrix, features, n_components=2, alpha = 0, l1_ratio 
                     alpha_W=alpha,
                     alpha_H=alpha,
                     l1_ratio=l1_ratio,
-                    init='nndsvd',
+                    # init='nndsvd',
                     max_iter=1000) # increased max_iter to increase convergence due to warning of exceeding the default limit of 200.
     W = nmf_model.fit_transform(document_term_matrix)
     H = nmf_model.components_
@@ -33,7 +33,7 @@ def run_all_nmf(document_term_matrix,features, alpha_values=[0], l1_ratios=[0]):
 
     results = []
     # for all components
-    for n_components in range(2,4):
+    for n_components in range(2,21):
         for alpha in alpha_values:
             for l1_ratio in l1_ratios:
                 start = timer()
@@ -51,5 +51,7 @@ def run_all_nmf(document_term_matrix,features, alpha_values=[0], l1_ratios=[0]):
                     "topics":topics,
                     "time":end-start
                     })
+                if alpha == 0: 
+                    break
     return results
 
