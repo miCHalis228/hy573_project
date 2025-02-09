@@ -4,6 +4,8 @@ import os
 from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import normalize
 from timeit import default_timer as timer
+from sklearn.linear_model import Ridge, Lasso
+
 
 def calculate_reconstruction_error(original_hdf5, reconstructed_hdf5, chunk_size=100):
     with tables.open_file(original_hdf5, mode="r") as orig_file, \
@@ -94,51 +96,80 @@ def get_topics(components, features, top_n=10):
 
 original_matrix_file = "original_matrix.h5"
 
-def run_svd(dtm, features, n_components, alpha, l1_ratio):
-    normed_matrix = []
-    if alpha != 0:
-        if l1_ratio == 0: # Pure L2
-            normed_matrix = normalize(dtm, axis=1, norm='l2')
-        else: # Pure L1
-            normed_matrix = normalize(dtm, axis=1, norm='l1')
-    else:
-        normed_matrix = dtm
-    svd_model = TruncatedSVD(n_components=n_components, random_state=2025)
-    U_k = svd_model.fit_transform(normed_matrix)
-    Sigma_k = np.diag(svd_model.singular_values_)
-    V_k = svd_model.components_
-    topics = get_topics(V_k, features, top_n = 100)
-
-    svd_decomposition_file = "svd_decomposition.h5"
-    save_svd_to_hdf5(U=U_k,Sigma=Sigma_k,Vt=V_k,hdf5_file=svd_decomposition_file)
-    svd_reconstructed_matrix_file = "svd_reconstructed_matrix.h5"
-    incremental_reconstruction(svd_decomposition_file,
-                               svd_reconstructed_matrix_file,
-                               chunk_size=1000)
-    reconstruction_error = calculate_reconstruction_error(original_matrix_file,
-                                                          svd_reconstructed_matrix_file,
-                                                          chunk_size=1000)
-    os.remove(svd_decomposition_file)
-    os.remove(svd_reconstructed_matrix_file)
-    return reconstruction_error, topics
 
 # from sparsesvd import sparsesvd
 # X = np.random.random((30, 30))
 # ut, s, vt = sparsesvd(X.tocsc(), k)
 
 def run_all_svd(document_term_matrix, features, alpha_values, l1_ratios):
+    
+    svd_decomposition_file = "svd_decomposition.h5"
+    svd_reconstructed_matrix_file = "svd_reconstructed_matrix.h5"
     original_matrix_file = "original_matrix.h5"
     save_original_to_hdf5(original_matrix=document_term_matrix.todense()
                           ,hdf5_file=original_matrix_file)
+
     results = []
     # for all components
     for n_components in range(2,21):
+        svd_model = TruncatedSVD(n_components=n_components, random_state=2025)
+        U_k = svd_model.fit_transform(document_term_matrix)
+        Sigma_k = np.diag(svd_model.singular_values_)
+        V_k = svd_model.components_
+        
+
+        def run_svd(features, alpha, l1_ratio):
+            reconstruction_error = None
+            topics = None
+            if alpha != 0:
+                if l1_ratio == 1: # L1
+                    # Lasso regularization (L1) on singular values
+                    lasso = Lasso(alpha=alpha)
+                    lasso.fit(np.arange(len(Sigma_k)).reshape(-1, 1), Sigma_k)
+                    S_lasso = np.maximum(lasso.predict(np.arange(len(Sigma_k)).reshape(-1, 1)), 0)
+                    save_svd_to_hdf5(U=U_k,Sigma=S_lasso,Vt=V_k,hdf5_file=svd_decomposition_file)
+                    incremental_reconstruction(svd_decomposition_file,
+                                            svd_reconstructed_matrix_file,
+                                            chunk_size=1000)
+                    reconstruction_error = calculate_reconstruction_error(original_matrix_file,
+                                                                        svd_reconstructed_matrix_file,
+                                                                        chunk_size=1000)
+                    topics = get_topics(V_k, features, top_n = 100)
+                    os.remove(svd_reconstructed_matrix_file)
+                elif l1_ratio == 0: # L2
+                    # Ridge regularization (L2) on singular values
+                    ridge = Ridge(alpha=alpha)
+                    ridge.fit(np.arange(len(Sigma_k)).reshape(-1, 1), Sigma_k)
+                    S_ridge = ridge.predict(np.arange(len(Sigma_k)).reshape(-1, 1))
+                    save_svd_to_hdf5(U=U_k,Sigma=S_ridge,Vt=V_k,hdf5_file=svd_decomposition_file)
+                    incremental_reconstruction(svd_decomposition_file,
+                                            svd_reconstructed_matrix_file,
+                                            chunk_size=1000)
+                    reconstruction_error = calculate_reconstruction_error(original_matrix_file,
+                                                                        svd_reconstructed_matrix_file,
+                                                                        chunk_size=1000)
+                    topics = get_topics(V_k, features, top_n = 100)
+                    os.remove(svd_reconstructed_matrix_file)
+            else:
+                save_svd_to_hdf5(U=U_k,Sigma=Sigma_k,Vt=V_k,hdf5_file=svd_decomposition_file)
+                incremental_reconstruction(svd_decomposition_file,
+                                        svd_reconstructed_matrix_file,
+                                        chunk_size=1000)
+                reconstruction_error = calculate_reconstruction_error(original_matrix_file,
+                                                                    svd_reconstructed_matrix_file,
+                                                                    chunk_size=1000)
+                topics = get_topics(V_k, features, top_n = 100)
+                os.remove(svd_reconstructed_matrix_file)
+            return reconstruction_error, topics
+
+
+        print(n_components)
         for alpha in alpha_values:
+            print(alpha)
             for l1_ratio in l1_ratios:
+                print(l1_ratio)
                 start = timer()
-                reconstruction_error, topics = run_svd(dtm=document_term_matrix,
-                                                       features=features,
-                                                       n_components=n_components,
+                reconstruction_error, topics = run_svd(features=features,
                                                        alpha=alpha,
                                                        l1_ratio=l1_ratio)
                 end = timer()
@@ -152,6 +183,6 @@ def run_all_svd(document_term_matrix, features, alpha_values, l1_ratios):
                     })
                 if alpha == 0: 
                     break
-
+        os.remove(svd_decomposition_file)
     os.remove(original_matrix_file)
     return results

@@ -2,3 +2,6 @@
 **/.vscode
 **/*.yml
 **/*.pyc
+helpers/__pycache__/__init__.cpython-312.pyc
+helpers/__pycache__/nmf_helper.cpython-312.pyc
+helpers/__pycache__/svd_helper.cpython-312.pyc
